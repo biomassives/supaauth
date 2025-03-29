@@ -1,0 +1,309 @@
+<!-- dashboard.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Your Application</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+    }
+
+    header {
+      background-color: #4285f4;
+      color: white;
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .user-role {
+      background-color: rgba(255, 255, 255, 0.2);
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.875rem;
+    }
+
+    .logout-btn {
+      background: none;
+      border: 1px solid white;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+
+    .logout-btn:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .card {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      padding: 1.5rem;
+    }
+
+    .card h3 {
+      margin-top: 0;
+      color: #333;
+    }
+
+    .permission-denied {
+      color: #d32f2f;
+      font-style: italic;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .admin-panel {
+      margin-top: 2rem;
+      background-color: #fffde7;
+      border: 1px solid #ffd54f;
+      border-radius: 8px;
+      padding: 1.5rem;
+    }
+
+    .user-list {
+      margin-top: 1rem;
+    }
+
+    .user-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem;
+      border-bottom: 1px solid #eee;
+    }
+
+    .user-item:last-child {
+      border-bottom: none;
+    }
+
+    select {
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+
+    button.save-role {
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+    }
+
+    button.save-role:hover {
+      background-color: #388e3c;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Dashboard</h1>
+    <div class="user-info">
+      <span id="user-email">Loading...</span>
+      <span class="user-role" id="user-role">user</span>
+      <button class="logout-btn" id="logout-btn">Logout</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <h2>Welcome to Your Dashboard</h2>
+    <p>This dashboard demonstrates role-based access control with Supabase.</p>
+
+    <div class="content-grid">
+      <!-- Basic content visible to all users -->
+      <div class="card">
+        <h3>User Content</h3>
+        <p>This content is visible to all authenticated users.</p>
+      </div>
+
+      <!-- Content visible only to editors and admins -->
+      <div class="card" id="editor-content">
+        <h3>Editor Content</h3>
+        <p class="content">This content is only visible to users with editor or admin roles.</p>
+        <p class="permission-denied hidden">You need editor permissions to view this content.</p>
+      </div>
+
+      <!-- Content visible only to admins -->
+      <div class="card" id="admin-content">
+        <h3>Admin Content</h3>
+        <p class="content">This content is only visible to users with admin role.</p>
+        <p class="permission-denied hidden">You need admin permissions to view this content.</p>
+      </div>
+    </div>
+
+    <!-- Admin Panel - only visible to admins -->
+    <div class="admin-panel hidden" id="admin-panel">
+      <h3>Admin Panel - User Management</h3>
+      <p>As an admin, you can manage user roles here.</p>
+      
+      <div class="user-list" id="user-list">
+        <!-- User list will be populated dynamically -->
+        <div class="user-item">Loading users...</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { 
+      getCurrentUser, 
+      signOut, 
+      checkAccess, 
+      redirectIfNotAuthenticated,
+      updateUserRole
+    } from './supabase-auth.js';
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+    // Replace with your Supabase URL and public anon key
+    const supabaseUrl = 'YOUR_SUPABASE_URL';
+    const supabaseKey = 'YOUR_SUPABASE_ANON_KEY';
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Redirect if not authenticated
+    redirectIfNotAuthenticated();
+
+    // DOM elements
+    const userEmailElement = document.getElementById('user-email');
+    const userRoleElement = document.getElementById('user-role');
+    const logoutButton = document.getElementById('logout-btn');
+    const editorContent = document.getElementById('editor-content');
+    const adminContent = document.getElementById('admin-content');
+    const adminPanel = document.getElementById('admin-panel');
+    const userList = document.getElementById('user-list');
+
+    // Initialize dashboard
+    async function initDashboard() {
+      const user = await getCurrentUser();
+      
+      if (!user) {
+        // Double-check authentication
+        window.location.href = 'login.html';
+        return;
+      }
+
+      // Display user info
+      userEmailElement.textContent = user.email;
+      userRoleElement.textContent = user.role;
+      
+      // Check permissions for editor content
+      const editorAccess = await checkAccess('editor')();
+      if (!editorAccess.allowed) {
+        editorContent.querySelector('.content').classList.add('hidden');
+        editorContent.querySelector('.permission-denied').classList.remove('hidden');
+      }
+      
+      // Check permissions for admin content
+      const adminAccess = await checkAccess('admin')();
+      if (!adminAccess.allowed) {
+        adminContent.querySelector('.content').classList.add('hidden');
+        adminContent.querySelector('.permission-denied').classList.remove('hidden');
+      } else {
+        // Show admin panel for admins
+        adminPanel.classList.remove('hidden');
+        // Load users for admin
+        await loadUsers();
+      }
+    }
+
+    // Load users (for admin only)
+    async function loadUsers() {
+      try {
+        // Get users through Supabase's built-in mechanism for user management
+        const { data: users, error } = await supabase
+          .from('user_roles') // Assuming you have this table
+          .select(`
+            user_id,
+            role,
+            users:user_id (email)
+          `)
+          .order('role');
+        
+        if (error) throw error;
+        
+        // Clear loading message
+        userList.innerHTML = '';
+        
+        // Populate user list
+        users.forEach(user => {
+          const userItem = document.createElement('div');
+          userItem.className = 'user-item';
+          userItem.innerHTML = `
+            <span>${user.users.email}</span>
+            <div>
+              <select class="role-select" data-user-id="${user.user_id}">
+                <option value="user" ${user.role === 'user' ? 'selected' : ''}>User</option>
+                <option value="editor" ${user.role === 'editor' ? 'selected' : ''}>Editor</option>
+                <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+              </select>
+              <button class="save-role" data-user-id="${user.user_id}">Save</button>
+            </div>
+          `;
+          userList.appendChild(userItem);
+        });
+        
+        // Add event listeners to save buttons
+        document.querySelectorAll('.save-role').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const userId = e.target.dataset.userId;
+            const select = document.querySelector(`.role-select[data-user-id="${userId}"]`);
+            const newRole = select.value;
+            
+            const success = await updateUserRole(userId, newRole);
+            
+            if (success) {
+              alert(`User role updated to ${newRole}`);
+            } else {
+              alert('Failed to update user role');
+            }
+          });
+        });
+      } catch (error) {
+        console.error('Error loading users:', error.message);
+        userList.innerHTML = '<div class="user-item">Error loading users</div>';
+      }
+    }
+
+    // Handle logout
+    logoutButton.addEventListener('click', async () => {
+      const result = await signOut();
+      if (result.success) {
+        window.location.href = 'login.html';
+      }
+    });
+
+    // Initialize dashboard when DOM is loaded
+    document.addEventListener('DOMContentLoaded', initDashboard);
+  </script>
+</body>
+</html>
