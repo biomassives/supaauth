@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - Your Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="auth-container">
+        <h1>Create an Account</h1>
+        <form id="signup-form">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" required minlength="6">
+            </div>
+            <div class="form-group">
+                <label for="confirm-password">Confirm Password</label>
+                <input type="password" id="confirm-password" required minlength="6">
+            </div>
+            <div class="error-message" id="signup-error"></div>
+            <button type="submit">Sign Up</button>
+        </form>
+        <p>Already have an account? <a href="login.html">Login</a></p>
+    </div>
+
+    <script type="module">
+        import { signUp } from './supabase-auth.js';
+
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            const errorElement = document.getElementById('signup-error');
+
+            errorElement.textContent = '';
+
+            if (password !== confirmPassword) {
+                errorElement.textContent = 'Passwords do not match';
+                return;
+            }
+
+            const result = await signUp(email, password);
+
+            if (result.success) {
+                alert('Account created successfully! Check your email for verification.');
+                window.location.href = 'login.html';
+            } else {
+                errorElement.textContent = result.error || 'Sign up failed';
+            }
+        });
+    </script>
+</body>
+
+</html>
