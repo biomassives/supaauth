@@ -5,7 +5,7 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
 
 // Replace with your Supabase URL and public anon key
-const supabaseUrl = 'YOUR_SUPABASE_URL'
+const supabaseUrl = 'https://dsqhmcjxgcwxcuincibs.supabase.co'
 const supabaseKey = 'YOUR_SUPABASE_ANON_KEY'
 const supabase = createClient(supabaseUrl, supabaseKey)
 
@@ -187,4 +187,152 @@ export function initAuth(onAuthStateChange) {
       console.log('User signed out')
     }
   })
+}
+
+// Check if current user is an admin
+export async function isAdmin() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return false;
+  
+  const { data, error } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', session.user.id)
+    .eq('role', 'admin')
+    .maybeSingle();
+    
+  if (error || !data) return false;
+  return true;
+}
+
+// Display admin features if user is admin
+export async function setupAdminFeatures() {
+  const adminElements = document.querySelectorAll('.admin-only');
+  
+  if (await isAdmin()) {
+    adminElements.forEach(el => el.classList.remove('hidden'));
+    
+    // Load admin dashboards if they exist
+    const adminDashboard = document.getElementById('admin-dashboard');
+    if (adminDashboard) {
+      await loadAdminDashboard();
+    }
+  } else {
+    adminElements.forEach(el => el.classList.add('hidden'));
+  }
+}
+
+// Load admin dashboard with all users and their roles
+export async function loadAdminDashboard() {
+  const usersContainer = document.getElementById('users-list');
+  if (!usersContainer) return;
+  
+  try {
+    // Get all profiles
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('*');
+      
+    if (profilesError) throw profilesError;
+    
+    // Get all user roles
+    const { data: userRoles, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('*');
+      
+    if (rolesError) throw rolesError;
+    
+    // Map roles to users
+    const userRolesMap = {};
+    userRoles.forEach(role => {
+      if (!userRolesMap[role.user_id]) {
+        userRolesMap[role.user_id] = [];
+      }
+      userRolesMap[role.user_id].push(role.role);
+    });
+    
+    // Render users with their roles
+    usersContainer.innerHTML = profiles.map(profile => {
+      const roles = userRolesMap[profile.id] || [];
+      const rolesBadges = roles.map(role => 
+        `<span class="badge badge-${role}">${role}</span>`
+      ).join('');
+      
+      return `
+        <div class="user-card">
+          <div class="user-info">
+            <img src="${profile.avatar_url || '/images/default-avatar.jpg'}" alt="${profile.display_name || 'User'}">
+            <div>
+              <h3>${profile.display_name || profile.email || 'Unknown User'}</h3>
+              <p>${profile.email || ''}</p>
+              <div class="roles-container">${rolesBadges}</div>
+            </div>
+          </div>
+          <div class="user-actions">
+            <button data-user-id="${profile.id}" class="btn add-admin-btn ${roles.includes('admin') ? 'hidden' : ''}">Make Admin</button>
+            <button data-user-id="${profile.id}" class="btn remove-admin-btn ${!roles.includes('admin') ? 'hidden' : ''}">Remove Admin</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    // Add event listeners for admin role management
+    document.querySelectorAll('.add-admin-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const userId = e.target.dataset.userId;
+        
+        try {
+          await supabase
+            .from('user_roles')
+            .insert([{ user_id: userId, role: 'admin' }]);
+            
+          // Refresh the dashboard
+          loadAdminDashboard();
+        } catch (error) {
+          alert(`Error adding admin role: ${error.message}`);
+        }
+      });
+    });
+    
+    document.querySelectorAll('.remove-admin-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const userId = e.target.dataset.userId;
+        
+        try {
+          await supabase
+            .from('user_roles')
+            .delete()
+            .eq('user_id', userId)
+            .eq('role', 'admin');
+            
+          // Refresh the dashboard
+          loadAdminDashboard();
+        } catch (error) {
+          alert(`Error removing admin role: ${error.message}`);
+        }
+      });
+    });
+    
+  } catch (error) {
+    console.error('Error loading admin dashboard:', error);
+    usersContainer.innerHTML = `<p class="error">Error loading users: ${error.message}</p>`;
+  }
+}
+
+// Call this on your admin pages
+document.addEventListener('DOMContentLoaded', async () => {
+  const user = await requireAuth();
+  if (!user) return;
+  
+  // Setup admin features if user is an admin
+  await setupAdminFeatures();
+});
+
+export async function requireAuth() {
+  const user = await getCurrentUser();
+  if (!user) {
+    window.location.href = '/login.html';
+    return null;
+  }
+  return user;
 }
