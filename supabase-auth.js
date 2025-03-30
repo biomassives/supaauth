@@ -62,22 +62,21 @@ export async function signOut() {
 
 // Function to get the current logged-in user
 export async function getCurrentUser() {
-  try {
-    const { data: { user }, error } = await supabase.auth.getUser()
-    
-    if (error) throw error
-    
-    if (user) {
-      // Get user's role
-      const role = await getUserRole(user.id)
-      return { ...user, role }
+    try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError) throw sessionError;
+        if (!session || !session.user) return null;
+
+        const user = session.user;
+
+        // Get user's role
+        const role = await getUserRole(user.id);
+        return { ...user, role };
+    } catch (error) {
+        console.error('Error getting current user:', error.message);
+        return null;
     }
-    
-    return null
-  } catch (error) {
-    console.error('Error getting current user:', error.message)
-    return null
-  }
 }
 
 // Role management functions
