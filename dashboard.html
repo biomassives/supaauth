@@ -1,143 +1,20 @@
-<!-- dashboard.html -->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard - Your Application</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-      margin: 0;
-      padding: 0;
-      background-color: #f5f5f5;
-    }
-
-    header {
-      background-color: #4285f4;
-      color: white;
-      padding: 1rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .user-info {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .user-role {
-      background-color: rgba(255, 255, 255, 0.2);
-      padding: 0.25rem 0.5rem;
-      border-radius: 4px;
-      font-size: 0.875rem;
-    }
-
-    .logout-btn {
-      background: none;
-      border: 1px solid white;
-      color: white;
-      padding: 0.5rem 1rem;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.875rem;
-    }
-
-    .logout-btn:hover {
-      background-color: rgba(255, 255, 255, 0.1);
-    }
-
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 2rem;
-    }
-
-    .content-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 1.5rem;
-      margin-top: 2rem;
-    }
-
-    .card {
-      background-color: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-      padding: 1.5rem;
-    }
-
-    .card h3 {
-      margin-top: 0;
-      color: #333;
-    }
-
-    .permission-denied {
-      color: #d32f2f;
-      font-style: italic;
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    .admin-panel {
-      margin-top: 2rem;
-      background-color: #fffde7;
-      border: 1px solid #ffd54f;
-      border-radius: 8px;
-      padding: 1.5rem;
-    }
-
-    .user-list {
-      margin-top: 1rem;
-    }
-
-    .user-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.75rem;
-      border-bottom: 1px solid #eee;
-    }
-
-    .user-item:last-child {
-      border-bottom: none;
-    }
-
-    select {
-      padding: 0.5rem;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-    }
-
-    button.save-role {
-      background-color: #4caf50;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      padding: 0.5rem 1rem;
-      cursor: pointer;
-    }
-
-    button.save-role:hover {
-      background-color: #388e3c;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
-<body>
-  <header>
-    <h1>Dashboard</h1>
-    <div class="user-info">
-      <span id="user-email">Loading...</span>
-      <span class="user-role" id="user-role">user</span>
-      <button class="logout-btn" id="logout-btn">Logout</button>
-    </div>
-  </header>
 
-  <div class="container">
+<body>
+    <header>
+        <h1>Dashboard</h1>
+        <button id="logout-btn">Logout</button>
+    </header>
+    
+    <div class="container">
     <h2>Welcome to Your Dashboard</h2>
     <p>This dashboard demonstrates role-based access control with Supabase.</p>
 
@@ -146,9 +23,14 @@
       <div class="card">
         <h3>User Content</h3>
         <p>This content is visible to all authenticated users.</p>
-      </div>
+      
+        <p>Email: <span id="user-email"></span></p>
+      
+        <p>Role <span id="user-role"></span></p>
 
-      <!-- Content visible only to editors and admins -->
+    </div>
+
+      <!-- Content vkisible only to editors and admins -->
       <div class="card" id="editor-content">
         <h3>Editor Content</h3>
         <p class="content">This content is only visible to users with editor or admin roles.</p>
@@ -175,23 +57,32 @@
     </div>
   </div>
 
-  <script type="module">
-    import { 
-      getCurrentUser, 
-      signOut, 
-      checkAccess, 
-      redirectIfNotAuthenticated,
-      updateUserRole
-    } from './supabase-auth.js';
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+   <div class="settings-panel">
+       <h3>User Settings</h3>
+       <button id="change-email-btn">Change Email</button>
+       <button id="download-data-btn">Download My Data</button>
+       <button id="delete-account-btn">Delete Account</button>
+       <div id="settings-message-container" class="message">
+           </div>
+   </div>
 
-    // Replace with your Supabase URL and public anon key
-    const supabaseUrl = 'YOUR_SUPABASE_URL';
-    const supabaseKey = 'YOUR_SUPABASE_ANON_KEY';
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    <script type="module">
+ 
 
-    // Redirect if not authenticated
-    redirectIfNotAuthenticated();
+  // Import directly from the CDN in your inline script
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+  
+  // Then import your local auth functions (which shouldn't re-export createClient)
+  import { checkAccess, updateUserRole, requireAuth, signOut, getCurrentUser } from './supabase-auth.js';
+  
+
+
+   document.addEventListener('DOMContentLoaded', async () => {
+    await requireAuth();
+    initDashboard();
+   });
+
+
 
     // DOM elements
     const userEmailElement = document.getElementById('user-email');
@@ -201,6 +92,12 @@
     const adminContent = document.getElementById('admin-content');
     const adminPanel = document.getElementById('admin-panel');
     const userList = document.getElementById('user-list');
+
+    const changeEmailButton = document.getElementById('change-email-btn');
+    const downloadDataButton = document.getElementById('download-data-btn');
+    const deleteAccountButton = document.getElementById('delete-account-btn');
+    const settingsMessageContainer = document.getElementById('settings-message-container');
+
 
     // Initialize dashboard
     async function initDashboard() {
@@ -290,7 +187,12 @@
         });
       } catch (error) {
         console.error('Error loading users:', error.message);
-        userList.innerHTML = '<div class="user-item">Error loading users</div>';
+       
+       
+        userList.innerHTML = '<div class="user-item error-message">Error loading users</div>';
+
+
+
       }
     }
 
@@ -302,8 +204,89 @@
       }
     });
 
-    // Initialize dashboard when DOM is loaded
-    document.addEventListener('DOMContentLoaded', initDashboard);
+
+    // ⭐️ NEW: Event listeners for settings buttons
+    changeEmailButton.addEventListener('click', async () => {
+           const newEmail = prompt("Enter your new email address:");
+           if (newEmail) {
+               try {
+                   const { data, error } = await supabase.auth.updateUser({ email: newEmail });
+                   if (error) throw error;
+
+                   settingsMessageContainer.textContent = "Email changed successfully! You may need to verify the new email.";
+                   settingsMessageContainer.className = "message success-message";
+               } catch (error) {
+                   console.error("Error changing email:", error);
+                   settingsMessageContainer.textContent = `Error: ${error.message}`;
+                   settingsMessageContainer.className = "message error-message";
+               }
+           }
+         });
+
+    downloadDataButton.addEventListener('click', async () => {
+           try {
+               const user = await getCurrentUser();
+               if (!user) {
+                   settingsMessageContainer.textContent = "Not authenticated.";
+                   settingsMessageContainer.className = "message error-message";
+                   return;
+               }
+
+               // ⭐️ Replace this with your actual data fetching logic
+               const { data, error } = await supabase
+                   .from('your_table') // Replace 'your_table'
+                   .select('*')
+                   .eq('user_id', user.id); // Assuming you have a user_id column
+               if (error) throw error;
+
+               if (data) {
+                   const json = JSON.stringify(data, null, 2); // Pretty-print JSON
+                   const blob = new Blob([json], { type: 'application/json' });
+                   const url = URL.createObjectURL(blob);
+                   const a = document.createElement('a');
+                   a.href = url;
+                   a.download = 'your_data.json'; // Filename
+                   document.body.appendChild(a);
+                   a.click();
+                   document.body.removeChild(a);
+                   URL.revokeObjectURL(url); // Clean up
+                   settingsMessageContainer.textContent = "Data download started.";
+                   settingsMessageContainer.className = "message success-message";
+
+               } else {
+                   settingsMessageContainer.textContent = "No data found for download.";
+                   settingsMessageContainer.className = "message error-message";
+               }
+           } catch (error) {
+               console.error("Error downloading data:", error);
+               settingsMessageContainer.textContent = `Error: ${error.message}`;
+               settingsMessageContainer.className = "message error-message";
+           }
+       });
+
+	deleteAccountButton.addEventListener('click', async () => {
+           const confirmDeletion = confirm("Are you sure you want to delete your account? This cannot be undone.");
+           if (confirmDeletion) {
+               try {
+                   const { data, error } = await supabase.auth.deleteUser();
+                   if (error) throw error;
+
+                   settingsMessageContainer.textContent = "Account deleted successfully.";
+                   settingsMessageContainer.className = "message success-message";
+
+                   // Optionally, redirect to a goodbye page or the signup page
+                   setTimeout(() => {
+                       window.location.href = 'signup.html';
+                   }, 2000);
+               } catch (error) {
+                   console.error("Error deleting account:", error);
+                   settingsMessageContainer.textContent = `Error: ${error.message}`;
+                   settingsMessageContainer.className = "message error-message";
+               }
+           }
+     });
   </script>
+
+
 </body>
 </html>
